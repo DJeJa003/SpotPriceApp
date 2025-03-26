@@ -3,6 +3,18 @@ from datetime import datetime, timezone, timedelta
 from data.api_client import PorssiSahkoApiClient
 from domain.entities import PricePoint
 
+class MockDateTime:
+    @classmethod
+    def now(cls, tz=None):
+        return datetime(2024, 3, 25, 12, 30, tzinfo=timezone.utc)
+    
+    @classmethod
+    def fromisoformat(cls, date_string):
+        # Handle the 'Z' timezone designator
+        if date_string.endswith('Z'):
+            date_string = date_string[:-1] + '+00:00'
+        return datetime.fromisoformat(date_string)
+
 def test_get_latest_prices(mocker):
     # Mock the API response
     mock_response = {
@@ -36,26 +48,25 @@ def test_get_latest_prices(mocker):
     assert isinstance(prices[0].end_date, datetime)
 
 def test_get_current_and_next_hour_prices(mocker):
-    # Create test data with current time in the middle
-    now = datetime.now(timezone.utc)
-    current_hour = now.replace(minute=0, second=0, microsecond=0)
+    # Create test data with fixed time
+    current_hour = datetime(2024, 3, 25, 12, 0, tzinfo=timezone.utc)
     
     mock_response = {
         "prices": [
             {
                 "price": 13.494,
-                "startDate": (current_hour - timedelta(hours=1)).isoformat() + "Z",
-                "endDate": current_hour.isoformat() + "Z"
+                "startDate": (current_hour - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                "endDate": current_hour.strftime("%Y-%m-%dT%H:%M:%S.000Z")
             },
             {
                 "price": 17.62,
-                "startDate": current_hour.isoformat() + "Z",
-                "endDate": (current_hour + timedelta(hours=1)).isoformat() + "Z"
+                "startDate": current_hour.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                "endDate": (current_hour + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
             },
             {
                 "price": 15.0,
-                "startDate": (current_hour + timedelta(hours=1)).isoformat() + "Z",
-                "endDate": (current_hour + timedelta(hours=2)).isoformat() + "Z"
+                "startDate": (current_hour + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                "endDate": (current_hour + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
             }
         ]
     }
@@ -65,7 +76,7 @@ def test_get_current_and_next_hour_prices(mocker):
     mock_response_obj.raise_for_status.return_value = None
     
     mocker.patch('requests.get', return_value=mock_response_obj)
-    mocker.patch('datetime.now', return_value=current_hour + timedelta(minutes=30))
+    mocker.patch('data.api_client.datetime', MockDateTime)
     
     client = PorssiSahkoApiClient()
     current_price, next_price = client.get_current_and_next_hour_prices()
