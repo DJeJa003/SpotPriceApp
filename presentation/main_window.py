@@ -89,6 +89,10 @@ class MainWindow(QMainWindow):
         self.show_daily_prices_button.clicked.connect(self.show_daily_prices)
         layout.addWidget(self.show_daily_prices_button)
 
+        self.show_next_day_prices_button = QPushButton("Show Next Day Prices")
+        self.show_next_day_prices_button.clicked.connect(self.show_next_day_prices)
+        layout.addWidget(self.show_next_day_prices_button)
+
     def show_daily_prices(self):
         """
         Display a dialog showing the daily electricity prices.
@@ -103,6 +107,44 @@ class MainWindow(QMainWindow):
         # Create a dialog to show the prices
         dialog = QDialog(self)
         dialog.setWindowTitle("Daily Prices")
+        dialog.setMinimumSize(300, 200)
+        layout = QVBoxLayout(dialog)
+
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setText(price_text)
+        layout.addWidget(text_edit)
+
+        dialog.exec()
+
+    def show_next_day_prices(self):
+        """
+        Display a dialog showing the next day's electricity prices.
+        Shows a message if prices are not available yet.
+        """
+        prices = self.api_client.get_daily_prices()
+        now = datetime.now(timezone.utc)
+        start_of_tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        end_of_tomorrow = start_of_tomorrow + timedelta(days=1) - timedelta(microseconds=1)
+
+        # Filter prices for tomorrow
+        tomorrow_prices = [
+            price for price in prices
+            if start_of_tomorrow <= price.start_date <= end_of_tomorrow
+        ]
+
+        if not tomorrow_prices:
+            QMessageBox.information(self, "Next Day Prices", "Prices for next day are not available yet.")
+            return
+
+        price_text = "\n\n".join(
+            f"{price.start_date.strftime('%Y-%m-%d %H:%M:%S')}: {price.price:.3f} snt/kWh" 
+            for price in tomorrow_prices
+        )
+
+        # Create a dialog to show the prices
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Next Day Prices")
         dialog.setMinimumSize(300, 200)
         layout = QVBoxLayout(dialog)
 
