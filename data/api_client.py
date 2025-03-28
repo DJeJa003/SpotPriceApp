@@ -95,22 +95,15 @@ class PorssiSahkoApiClient(PriceRepository):
         prices = self.get_latest_prices()
         now = datetime.now(timezone.utc)
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-        # Filter prices for today
-        daily_prices = [
-            price for price in prices
-            if start_of_today <= price.start_date <= end_of_today
-        ]
-
-        # Optionally, you can also fetch prices for the next day if available
-        # This can be done by checking the next day's prices in the same way
-        start_of_tomorrow = end_of_today + timedelta(days=1)
+        end_of_today = start_of_today + timedelta(days=1) - timedelta(microseconds=1)
+        start_of_tomorrow = end_of_today + timedelta(microseconds=1)
         end_of_tomorrow = start_of_tomorrow + timedelta(days=1) - timedelta(microseconds=1)
 
-        tomorrow_prices = [
+        # Filter prices for today and tomorrow
+        daily_prices = [
             price for price in prices
-            if start_of_tomorrow <= price.start_date <= end_of_tomorrow
+            if (start_of_today <= price.start_date <= end_of_today) or
+               (start_of_tomorrow <= price.start_date <= end_of_tomorrow)
         ]
 
-        return daily_prices + tomorrow_prices
+        return daily_prices
